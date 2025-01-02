@@ -31,5 +31,8 @@ fn main() {
     tree.add_leaf(leaf_d);
 
     println!("{:?}", hex::encode(tree.calculate_root().unwrap()));
+
+    let proof = tree.get_proof(1).unwrap();
+    println!("{:?}", proof);
 }
 
