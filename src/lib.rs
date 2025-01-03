@@ -1,6 +1,4 @@
-pub mod merkle;
-pub mod common;
+pub mod crypto;
 
 // Re-export the MerkleTree struct for easier access
-pub use merkle::merkle_tree::MerkleTree;
-pub use common::hashable::Sha256Hashable;
+pub use crypto::merkle::MerkleTree;
