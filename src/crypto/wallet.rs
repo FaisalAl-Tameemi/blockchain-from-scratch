@@ -1,22 +1,19 @@
-use bip39::Mnemonic;
+use bip39::{Mnemonic};
 
-pub struct Wallet {
-    pub public_key: Vec<u8>,
-    pub private_key: Vec<u8>,
-}
+pub struct Wallet {}
 
 impl Wallet {
-    pub fn new() -> Self {
-        Self {
-            public_key: vec![],
-            private_key: vec![],
-        }
-    }
-
     pub fn generate_mnemonic_phrase() -> Mnemonic {
         Mnemonic::generate(24).unwrap()
     }
 
+    pub fn derive_wallet_from_mnemonic(mnemonic: &str, path: &str) -> Self {
+        unimplemented!()
+    }
+
+    pub fn derive_wallet_from_seed(seed: &str, path: &str) -> Self {
+        unimplemented!()
+    }
 }
 
 #[cfg(test)]
