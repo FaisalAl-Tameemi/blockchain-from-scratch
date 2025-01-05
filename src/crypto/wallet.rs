@@ -1,5 +1,5 @@
 use bip39::Mnemonic;
-use ed25519_dalek::{SecretKey, SigningKey, VerifyingKey};
+use ed25519_dalek::{SigningKey, VerifyingKey};
 use hmac::{Hmac, Mac};
 use sha2::Sha512;
 
@@ -11,17 +11,17 @@ type HmacSha512 = Hmac<Sha512>;
 
 #[derive(Clone)]
 pub struct Keypair {
-    pub secret: SigningKey,
-    pub public: VerifyingKey,
+    secret: SigningKey,
+    public: VerifyingKey,
 }
 
 #[derive(Clone)]
 pub struct ExtendedKeypair {
-    pub keypair: Keypair,
-    pub chain_code: [u8; 32],
-    pub depth: u8,
-    pub parent_fingerprint: [u8; 4],
-    pub child_number: u32,
+    keypair: Keypair,
+    chain_code: [u8; 32],
+    depth: u8,
+    parent_fingerprint: [u8; 4],
+    child_number: u32,
 }
 
 pub struct Wallet {
@@ -62,15 +62,25 @@ impl Wallet {
         })
     }
 
-    // pub fn generate_wallet_from_private_key(private_key: &str) -> Result<Self, Error> {
-    //     let secret_key = SecretKey::from(&hex::decode(private_key)?[..32]);
-    //     let secret = SigningKey::from_bytes(&secret_key);
-    //     let public = VerifyingKey::from(&secret);
-    //     Ok(Self { 
-    //         master_keypair: ExtendedKeypair { keypair: Keypair { secret, public }, chain_code: [0u8; 32], depth: 0, parent_fingerprint: [0u8; 4], child_number: 0 },
-    //         derived_keys: Vec::new(),
-    //     })
-    // }
+    pub fn generate_wallet_from_private_key(private_key: &str) -> Result<Self, Error> {
+        // read 32 bytes from the private key
+        let mut secret_bytes = [0u8; 32];
+        hex::decode_to_slice(private_key, &mut secret_bytes)?;
+        // convert the bytes to a keypair
+        let secret = SigningKey::from_bytes(&secret_bytes);
+        let public = VerifyingKey::from(&secret);
+        
+        Ok(Self { 
+            master_keypair: ExtendedKeypair {
+                keypair: Keypair { secret, public }, 
+                chain_code: [0u8; 32], 
+                depth: 0, 
+                parent_fingerprint: [0u8; 4], 
+                child_number: 0 
+            },
+            derived_keys: Vec::new(),
+        })
+    }
 
     pub fn derive_child_key(&mut self, index: u32) -> Result<&ExtendedKeypair, Error> {
         let parent = &self.master_keypair;
@@ -146,23 +156,43 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_generate_mnemonic_phrase() {
+        let mnemonic = Wallet::generate_mnemonic_phrase();
+        println!("Mnemonic: {:?}", mnemonic.to_string());
+        assert!(mnemonic.word_count() == 24);
+    }
+
+    #[test]
     fn test_key_derivation() {
         let mnemonic = "jazz exact bamboo hello situate degree fire taste math stock idea stock glimpse click elevator protect myself similar skate unfold ready cream cake march";
-        let mut wallet = Wallet::generate_wallet_from_mnemonic(mnemonic).unwrap();
+        let mut wallet = Wallet::generate_wallet_from_mnemonic(mnemonic, None).unwrap();
 
         println!("Master secret key: {:?}", hex::encode(wallet.get_master_secret_key().to_bytes()));
         println!("Master public key: {:?}", hex::encode(wallet.get_master_public_key().to_bytes()));
         
-        let child0 = wallet.derive_child_key(0).unwrap();
+        let child0 = wallet.derive_child_key(50).unwrap();
         let child0_pubkey = child0.keypair.public.to_bytes();
 
         println!("Child 0 pubkey: {:?}", hex::encode(child0_pubkey));
         
-        let child1 = wallet.derive_child_key(1).unwrap();
+        let child1 = wallet.derive_child_key(51).unwrap();
         let child1_pubkey = child1.keypair.public.to_bytes();
         
         println!("Child 1 pubkey: {:?}", hex::encode(child1_pubkey));
         
         assert_ne!(child0_pubkey, child1_pubkey);
+    }
+
+    #[test]
+    fn test_key_derivation_from_private_key() {
+        let mnemonic = Wallet::generate_mnemonic_phrase();
+        let wallet = Wallet::generate_wallet_from_mnemonic(&mnemonic.to_string(), None).unwrap();
+        let private_key = hex::encode(wallet.get_master_secret_key().to_bytes());
+        let wallet_from_priv_key = Wallet::generate_wallet_from_private_key(&private_key).unwrap();
+
+        assert_eq!(wallet.get_master_secret_key().to_bytes(), wallet_from_priv_key.get_master_secret_key().to_bytes());
+        assert_eq!(wallet.get_master_public_key().to_bytes(), wallet_from_priv_key.get_master_public_key().to_bytes());
+
+        // Note: The derived keys will be the same but the child keys will be different because the chain code is different
     }
 }
