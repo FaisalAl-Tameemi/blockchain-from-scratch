@@ -1,5 +1,5 @@
 use bip39::Mnemonic;
-use ed25519_dalek::{SigningKey, VerifyingKey};
+use ed25519_dalek::{ed25519::signature::SignerMut, Signature, SigningKey, VerifyingKey};
 use hmac::{Hmac, Mac};
 use sha2::Sha512;
 
@@ -25,8 +25,7 @@ pub struct ExtendedKeypair {
 }
 
 pub struct Wallet {
-    master_keypair: ExtendedKeypair,
-    derived_keys: Vec<ExtendedKeypair>,
+    keypair: ExtendedKeypair,
 }
 
 impl Wallet {
@@ -57,8 +56,7 @@ impl Wallet {
         };
         
         Ok(Self { 
-            master_keypair,
-            derived_keys: Vec::new(),
+            keypair: master_keypair,
         })
     }
 
@@ -71,19 +69,18 @@ impl Wallet {
         let public = VerifyingKey::from(&secret);
         
         Ok(Self { 
-            master_keypair: ExtendedKeypair {
+            keypair: ExtendedKeypair {
                 keypair: Keypair { secret, public }, 
                 chain_code: [0u8; 32], 
                 depth: 0, 
                 parent_fingerprint: [0u8; 4], 
                 child_number: 0 
             },
-            derived_keys: Vec::new(),
         })
     }
 
-    pub fn derive_child_key(&mut self, index: u32) -> Result<&ExtendedKeypair, Error> {
-        let parent = &self.master_keypair;
+    pub fn derive_child_key(&mut self, index: u32) -> Result<Self, Error> {
+        let parent = &self.keypair;
         let hardened = index >= 0x80000000;
         
         // Create HMAC with parent chain code
@@ -134,20 +131,27 @@ impl Wallet {
             child_number: index,
         };
         
-        self.derived_keys.push(extended_keypair);
-        Ok(self.derived_keys.last().unwrap())
+        Ok(Self {
+            keypair: extended_keypair,
+        })
     }
 
     pub fn get_master_public_key(&self) -> &VerifyingKey {
-        &self.master_keypair.keypair.public
+        &self.keypair.keypair.public
     }
 
     pub fn get_master_secret_key(&self) -> &SigningKey {
-        &self.master_keypair.keypair.secret
+        &self.keypair.keypair.secret
     }
 
-    pub fn get_derived_keys(&self) -> &[ExtendedKeypair] {
-        &self.derived_keys
+    pub fn sign(&mut self, message: &[u8]) -> Result<Signature, Error> {
+        let signature = self.keypair.keypair.secret.sign(message);
+        Ok(signature)
+    }
+
+    pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<(), Error> {
+        self.keypair.keypair.public.verify_strict(message, signature)?;
+        Ok(())
     }
 }
 
@@ -171,12 +175,12 @@ mod tests {
         println!("Master public key: {:?}", hex::encode(wallet.get_master_public_key().to_bytes()));
         
         let child0 = wallet.derive_child_key(50).unwrap();
-        let child0_pubkey = child0.keypair.public.to_bytes();
+        let child0_pubkey = child0.keypair.keypair.public.to_bytes();
 
         println!("Child 0 pubkey: {:?}", hex::encode(child0_pubkey));
         
         let child1 = wallet.derive_child_key(51).unwrap();
-        let child1_pubkey = child1.keypair.public.to_bytes();
+        let child1_pubkey = child1.keypair.keypair.public.to_bytes();
         
         println!("Child 1 pubkey: {:?}", hex::encode(child1_pubkey));
         
@@ -194,5 +198,18 @@ mod tests {
         assert_eq!(wallet.get_master_public_key().to_bytes(), wallet_from_priv_key.get_master_public_key().to_bytes());
 
         // Note: The derived keys will be the same but the child keys will be different because the chain code is different
+    }
+
+    #[test]
+    fn test_sign_and_verify() {
+        let message = b"Hello, world!";
+        let mnemonic = Wallet::generate_mnemonic_phrase();
+        let mut wallet = Wallet::generate_wallet_from_mnemonic(&mnemonic.to_string(), None).unwrap();
+        let signature = wallet.sign(message).unwrap();
+
+        println!("Signature: {:?}", hex::encode(signature.to_bytes()));
+
+        wallet.verify(message, &signature).unwrap();
+        wallet.verify(b"fake message", &signature).unwrap_err();
     }
 }
