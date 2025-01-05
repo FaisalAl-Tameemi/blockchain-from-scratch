@@ -149,8 +149,9 @@ impl Wallet {
         Ok(signature)
     }
 
-    pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<(), Error> {
-        self.keypair.keypair.public.verify_strict(message, signature)?;
+    pub fn verify(&self, message: &[u8], signature: &[u8; 64]) -> Result<(), Error> {
+        let signature = Signature::from_bytes(signature);
+        self.keypair.keypair.public.verify_strict(message, &signature)?;
         Ok(())
     }
 }
@@ -209,7 +210,7 @@ mod tests {
 
         println!("Signature: {:?}", hex::encode(signature.to_bytes()));
 
-        wallet.verify(message, &signature).unwrap();
-        wallet.verify(b"fake message", &signature).unwrap_err();
+        wallet.verify(message, &signature.to_bytes()).unwrap();
+        wallet.verify(b"fake message", &signature.to_bytes()).unwrap_err();
     }
 }
