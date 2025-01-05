@@ -1,13 +1,10 @@
 use bip39::Mnemonic;
-use ed25519_dalek::{SigningKey, VerifyingKey};
+use ed25519_dalek::{SecretKey, SigningKey, VerifyingKey};
 use hmac::{Hmac, Mac};
 use sha2::Sha512;
 
 use crate::common::error::Error;
 
-const HARDENED_OFFSET: u32 = 0x80000000;
-const FINGERPRINT_LENGTH: usize = 4;
-const CHAIN_CODE_LENGTH: usize = 32;
 const SEED_KEY: &[u8] = b"Bitcoin seed";
 
 type HmacSha512 = Hmac<Sha512>;
@@ -37,8 +34,8 @@ impl Wallet {
         Mnemonic::generate(24).unwrap()
     }
 
-    pub fn generate_wallet_from_mnemonic(mnemonic: &str) -> Result<Self, Error> {
-        let seed = Mnemonic::parse(mnemonic)?.to_seed("");
+    pub fn generate_wallet_from_mnemonic(mnemonic: &str, password: Option<&str>) -> Result<Self, Error> {
+        let seed = Mnemonic::parse(mnemonic)?.to_seed(password.unwrap_or(""));
         
         // Create HMAC with "Bitcoin seed" key
         let mut mac = HmacSha512::new_from_slice(SEED_KEY)
@@ -64,6 +61,16 @@ impl Wallet {
             derived_keys: Vec::new(),
         })
     }
+
+    // pub fn generate_wallet_from_private_key(private_key: &str) -> Result<Self, Error> {
+    //     let secret_key = SecretKey::from(&hex::decode(private_key)?[..32]);
+    //     let secret = SigningKey::from_bytes(&secret_key);
+    //     let public = VerifyingKey::from(&secret);
+    //     Ok(Self { 
+    //         master_keypair: ExtendedKeypair { keypair: Keypair { secret, public }, chain_code: [0u8; 32], depth: 0, parent_fingerprint: [0u8; 4], child_number: 0 },
+    //         derived_keys: Vec::new(),
+    //     })
+    // }
 
     pub fn derive_child_key(&mut self, index: u32) -> Result<&ExtendedKeypair, Error> {
         let parent = &self.master_keypair;

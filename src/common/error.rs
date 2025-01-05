@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Error)]
 pub enum Error {
     #[error("Invalid key")]
     InvalidKey,
@@ -13,4 +13,7 @@ pub enum Error {
 
     #[error("Invalid chain code")]
     InvalidChainCode,
+
+    #[error("Hex error")]
+    HexError(#[from] hex::FromHexError),
 }
