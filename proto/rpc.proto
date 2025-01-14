@@ -1,0 +1,21 @@
+syntax = "proto3";
+package rpc;
+
+message GetBlockchainHeightRequest {}
+
+message GetBlockchainHeightResponse {
+    uint64 height = 1;
+}
+
+message AddTransactionRequest {
+    string transaction = 1;
+}
+
+message AddTransactionResponse {
+    bool success = 1;
+}
+
+service BlockchainService {
+    rpc GetBlockchainHeight (GetBlockchainHeightRequest) returns (GetBlockchainHeightResponse);
+    rpc AddTransaction (AddTransactionRequest) returns (AddTransactionResponse);
+}

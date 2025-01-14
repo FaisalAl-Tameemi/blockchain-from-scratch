@@ -1,6 +1,7 @@
 use crate::crypto::hasher::Hasher;
 use crate::common::error::Error;
 
+#[derive(Debug, Clone)]
 pub struct Transaction {
     // Transaction metadata
     pub version: u32,   // Version of the transaction format
@@ -22,10 +23,29 @@ pub struct Transaction {
     pub block_height: u64,  // Height of containing block
 }
 
+#[derive(Debug, Clone)]
 pub enum TransactionStatus {
     Pending,
     Confirmed,
     Failed,
+}
+
+impl Default for Transaction {
+    fn default() -> Self {
+        Self {
+            version: 0,
+            timestamp: 0,
+            size: 0,
+            sender_address: String::new(),
+            receiver_address: String::new(),
+            status: TransactionStatus::Pending,
+            fee: 0,
+            nonce: 0,
+            hash: String::new(),
+            block_hash: String::new(),
+            block_height: 0,
+        }
+    }
 }
 
 impl Transaction {

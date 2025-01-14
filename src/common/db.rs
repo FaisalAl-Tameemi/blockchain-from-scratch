@@ -1,5 +1,6 @@
-use rusqlite::{Connection, Result};
+use tokio_rusqlite::{Connection, Result};
 
+#[derive(Debug)]
 pub struct DB {
     conn: Connection,
 }
@@ -11,31 +12,40 @@ pub struct DbBlock {
 }
 
 impl DB {
-    pub fn new() -> Result<Self> {
-        let conn = Connection::open_in_memory()?;
+    pub async fn new() -> Result<Self> {
+        let conn = Connection::open_in_memory().await?;
         Ok(Self { conn })
     }
 
-    pub fn initialize(&self) -> Result<()> {
-        self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS blocks (height INTEGER PRIMARY KEY AUTOINCREMENT, hash TEXT)",
-            [],
-        )?;
+    pub async fn initialize(&self) -> Result<()> {
+        self.conn.call(|conn| {
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS blocks (height INTEGER PRIMARY KEY AUTOINCREMENT, hash TEXT)",
+                [],
+            )?;
+            Ok(())
+        }).await?;
         Ok(())
     }
 
-    pub fn get_next_block_height(&self) -> Result<u64> {
+    pub async fn get_next_block_height(&self) -> Result<u64> {
         let query = "SELECT height FROM blocks ORDER BY height DESC LIMIT 1";
-        let mut stmt = self.conn.prepare(query)?;
-        let height = stmt.query_row([], |row| row.get(0));
-        Ok(height.unwrap_or(0) + 1)
+        let result = self.conn.call(|conn| {
+            let mut stmt = conn.prepare(query)?;
+            let height = stmt.query_row([], |row| row.get(0));
+            Ok(height.unwrap_or(0) + 1)
+        }).await?;
+        Ok(result)
     }
 
-    pub fn insert_block(&self, block: DbBlock) -> Result<()> {
-        self.conn.execute(
-            "INSERT INTO blocks (hash) VALUES (?)",
-            [block.hash],
-        )?;
+    pub async fn insert_block(&self, block: DbBlock) -> Result<()> {
+        self.conn.call(|conn| {
+            conn.execute(
+                "INSERT INTO blocks (hash) VALUES (?)",
+                [block.hash],
+            )?;
+            Ok(())
+        }).await?;
         Ok(())
     }
 }
