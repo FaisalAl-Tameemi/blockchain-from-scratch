@@ -1,6 +1,6 @@
+use crate::crypto::hasher::Hasher;
 use crate::common::error::Error;
 
-// The struct of a proof-of-stake transaction
 pub struct Transaction {
     // Transaction metadata
     pub version: u32,   // Version of the transaction format
@@ -37,7 +37,20 @@ impl Transaction {
         unimplemented!()
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn hash(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&self.version.to_le_bytes());
+        bytes.extend_from_slice(&self.timestamp.to_le_bytes());
+        bytes.extend_from_slice(&self.size.to_le_bytes());
+        bytes.extend_from_slice(&self.sender_address.as_bytes());
+        bytes.extend_from_slice(&self.receiver_address.as_bytes());
+        bytes.extend_from_slice(&self.fee.to_le_bytes());
+        bytes.extend_from_slice(&self.nonce.to_le_bytes());
+        bytes.extend_from_slice(&self.hash.as_bytes());
+        bytes.hash()
+    }
+
+    pub fn verify(&self) -> Result<(), Error> {
         unimplemented!()
     }
 }
