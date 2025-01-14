@@ -33,10 +33,6 @@ impl Transaction {
         unimplemented!()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        unimplemented!()
-    }
-
     pub fn hash(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(&self.version.to_le_bytes());
